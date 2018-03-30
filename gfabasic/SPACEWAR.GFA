@@ -1,0 +1,188 @@
+xmax=640
+ymax=512
+OPENS 1,0,0,xmax,ymax,3,32772
+OPENW 1,0,1,xmax,ymax-1,0,131072+2048
+DRAW "sx.75 sy.75"
+init
+COLOR 0
+PBOX 0,0,xmax,ymax
+anz=2
+WHILE NOT STRIG(1)
+  player1
+  player2
+  joy1
+  joy2
+  '
+  drawcent
+  '
+  FOR o=1 TO anz
+    loesch(torp(o,1),torp(o,2))
+  NEXT o
+  calc
+WEND
+PROCEDURE space1(x,y,w)
+  COLOR 2
+  SETDRAW x,y,w
+  DRAW "rt45 fd10 lt90 fd10 lt90 fd10 lt90 fd10"
+  DRAW "rt45 fd7 rt45 fd10 rt180 fd10 rt90 fd10"
+RETURN
+PROCEDURE space2(x,y,w)
+  COLOR 3
+  SETDRAW x,y,w
+  DRAW "fd25 rt180 fd12 lt30 fd20 rt120 fd20 rt120 fd20"
+  DRAW "rt150 fd13 rt67 fd11 lt157 fd20 lt157 fd11"
+RETURN
+> PROCEDURE loesch(x,y)
+  COLOR 0
+  PBOX x-25,y-25,x+25,y+25
+RETURN
+> PROCEDURE player1
+  IF torp(1,1)>xmax THEN
+    torp(1,1)=torp(1,1)-xmax
+  ENDIF
+  IF torp(1,1)<0 THEN
+    torp(1,1)=torp(1,1)+xmax
+  ENDIF
+  IF torp(1,2)>ymax THEN
+    torp(1,2)=torp(1,2)-ymax
+  ENDIF
+  IF torp(1,2)<0 THEN
+    torp(1,2)=torp(1,2)+ymax
+  ENDIF
+  space1(torp(1,1),torp(1,2),w1)
+RETURN
+> PROCEDURE player2
+  IF torp(2,1)>xmax THEN
+    torp(2,1)=torp(2,1)-xmax
+  ENDIF
+  IF torp(2,1)<0 THEN
+    torp(2,1)=torp(2,1)+xmax
+  ENDIF
+  IF torp(2,2)>ymax THEN
+    torp(2,2)=torp(2,2)-ymax
+  ENDIF
+  IF torp(2,2)<0 THEN
+    torp(2,2)=torp(2,2)+ymax
+  ENDIF
+  space2(torp(2,1),torp(2,2),w2)
+RETURN
+> PROCEDURE joy1
+  d1=STICK(1)
+  IF d1=1 OR d1=9 OR d1=5 THEN
+    vel(1,1)=vel(1,1)+COSQ(w1-90)*0.5
+    vel(1,2)=vel(1,2)+SINQ(w1-90)*0.5
+  ENDIF
+  IF d1=4 OR d1=6 THEN
+    w1=w1-10
+    IF w1<0 THEN
+      w1=w1+360
+    ENDIF
+  ENDIF
+  IF d1=8 OR d1=9 THEN
+    w1=w1+10
+    IF w1>360 THEN
+      w1=w1-360
+    ENDIF
+  ENDIF
+RETURN
+> PROCEDURE joy2
+  d2=STICK(1)
+  IF d2=1 OR d2=9 OR d2=5 THEN
+    vel(2,1)=vel(2,1)+COSQ(w2-90)*0.5
+    vel(2,2)=vel(2,2)+SINQ(w2-90)*0.5
+  ENDIF
+  IF d2=4 OR d2=6 THEN
+    w2=w2-10
+    IF w2<0 THEN
+      w2=w2+360
+    ENDIF
+  ENDIF
+  IF d2=8 OR d2=9 THEN
+    w2=w2+10
+    IF w2>360 THEN
+      w2=w2-360
+    ENDIF
+  ENDIF
+RETURN
+> PROCEDURE calc
+  FOR o=1 TO anz
+    dx=torp(o,1)-xc
+    dy=torp(o,2)-yc
+    dist=INT(SQR(dx^2+dy^2))
+    IF dist<=rad THEN
+      LOCATE 20,20
+      PRINT "inne Sonne!!!"
+    ENDIF
+    a=MIN(kraft(MIN(dist,MAX(xmax/2,ymax/2))),15)
+    IF dx>0 THEN
+      wio=DEG(ATN(dy/dx))
+    ELSE
+      wio=DEG(ATN(dy/dx)-PI)
+    ENDIF
+    COLOR 2
+    LINE xc,yc,xc+COSQ(wio)*a,yc+SINQ(wio)*a
+    px=-COSQ(wio)*a
+    py=-SINQ(wio)*a
+    vel(o,1)=vel(o,1)+px
+    vel(o,2)=vel(o,2)+py
+    torp(o,1)=torp(o,1)+vel(o,1)
+    torp(o,2)=torp(o,2)+vel(o,2)
+  NEXT o
+RETURN
+> PROCEDURE drawcent
+  PUT xc-rad,yc-rad,sun$
+  COLOR 6
+  '  FOR a=0 TO 40
+  ' PLOT star(a,0),star(a,1)
+  ' NEXT a
+RETURN
+> PROCEDURE init
+  initfarb
+  maxtorp=20
+  rad=15
+  initobj
+  torp(1,1)=xmax/3
+  torp(1,2)=ymax/3
+  w1=0
+  v1=7
+  torp(2,1)=xmax*(2/3)
+  torp(2,2)=ymax*(2/3)
+  w2=180
+  v2=7
+  xc=xmax/2
+  yc=ymax/2
+  COLOR 7
+  CIRCLE xc,yc,rad
+  COLOR 6
+  FILL xc,yc
+  GET xc-15,yc-13,xc+15,yc+13,sun$
+RETURN
+> PROCEDURE initfarb
+  RESTORE farben
+  FOR x=0 TO 7
+    READ r,g,b
+    SETCOLOR x,r,g,b
+  NEXT x
+  farben:
+  DATA  0, 0, 0,   3, 8,10
+  DATA 15, 0, 0,   0, 0,15
+  DATA  0,15, 0,   0,15,15
+  DATA 15,15, 0,   7, 7, 0
+RETURN
+> PROCEDURE initobj
+  DIM torp(maxtorp+2,2)
+  DIM vel(maxtorp+2,2)
+  IF xmax>ymax THEN
+    DIM kraft(xmax/2)
+  ELSE
+    DIM kraft(ymax/2)
+  ENDIF
+  FOR x=rad TO MAX(ymax/2,xmax/2)
+    kraft(x)=5000/x^2
+  NEXT x
+  DIM star(100,1)
+  FOR x=0 TO 100
+    star(x,0)=INT(RND*xmax)
+    star(x,1)=INT(RND*ymax)
+  NEXT x
+RETURN

@@ -1,0 +1,375 @@
+'
+'
+'            The mega-mighty-hyper-giga old-fashioned CLASSIC:
+'
+'                              PONG   !
+'
+'                  written in a few Hours by L.S.D
+'
+'  on Thursday,the 19th October 1995 late in the evening in Holidays!!
+'
+'
+xmax=320
+ymax=255
+OPENS 1,0,0,xmax,ymax,4,0
+TITLES1,""
+OPENW 1,0,0,xmax,ymax,0,2048+4096+131072
+TITLEW #1,""
+DIM a$(4)
+step=4
+speed=2
+bat=70
+COLOR 0
+PBOX 0,0,xmax,20
+initcols
+field
+loop:
+title
+startup
+WHILE pu1<10 AND pu2<10 AND INKEY$<>CHR$(27)
+  move
+  setp1
+  setp2
+  movep1
+  IF playeranz=2
+    movep2
+  ELSE
+    movecpu
+  ENDIF
+WEND
+gameover
+GOTO loop
+' *******************************************************************
+'                             SPIEL-ROUTINEN
+' *******************************************************************
+> PROCEDURE move
+  ballclr
+  xc=xc+xs*speed
+  IF xc=<32 THEN
+    IF yc-p1=<bat AND yc-p1=>0 THEN
+      xs=-xs
+      xc=xc+xs*speed
+      SOUND 380,4,255,0
+    ELSE
+      SETCOLOR 0,15,0,0
+      SOUND 300,12,255,0
+      SETCOLOR 0,0,0,0
+      pu2=pu2+1
+      startup
+    ENDIF
+  ENDIF
+  IF xc=>281 THEN
+    IF yc-p2<bat AND yc-p2=>0 THEN
+      xs=-xs
+      xc=xc+xs*speed
+      SOUND 440,4,255,1
+    ELSE
+      SETCOLOR 0,0,15,0
+      SOUND 300,12,255,1
+      SETCOLOR 0,0,0,0
+      pu1=pu1+1
+      startup
+    ENDIF
+  ENDIF
+  yc=yc+ys*speed
+  IF yc>yl2 OR yc<yl1 THEN
+    ys=-ys
+    SOUND 660,4,127,2
+  ENDIF
+  ballset
+RETURN
+> PROCEDURE ballclr
+  COLOR 0
+  PBOX xc,yc,xc+5,yc+5
+RETURN
+> PROCEDURE ballset
+  COLOR 1
+  PBOX xc,yc,xc+5,yc+5
+RETURN
+> PROCEDURE setp1
+  IF d1<>0 THEN
+    COLOR 0
+    PBOX 26,yl1,31,yl2+9
+    COLOR 3
+    PBOX 26,p1,31,p1+bat
+  ELSE
+    FOR t=1 TO 100
+    NEXT t
+  ENDIF
+RETURN
+> PROCEDURE setp2
+  IF d2<>0 THEN
+    COLOR 0
+    PBOX 289,yl1,294,yl2+9
+    COLOR 2
+    PBOX 289,p2,294,p2+bat
+  ELSE
+    FOR t=1 TO 100
+    NEXT t
+  ENDIF
+RETURN
+' *******************************************************************
+'                           JOYSTICK-ROUTINEN
+' *******************************************************************
+> PROCEDURE movep1
+  d1=STICK(1)
+  IF d1=1 THEN
+    p1=p1-step*ABS(STRIG(1)-1)
+    IF p1<yl1+1 THEN
+      p1=yl1+1
+      d1=0
+    ENDIF
+  ENDIF
+  IF d1=2 THEN
+    p1=p1+step*ABS(STRIG(1)-1)
+    IF p1>yl2-bat+8 THEN
+      p1=yl2-bat+8
+      d1=0
+    ENDIF
+  ENDIF
+RETURN
+> PROCEDURE movep2
+  d2=STICK(0)
+  IF d2=1 THEN
+    p2=p2-step*ABS(STRIG(0)-1)
+    IF p2<yl1+1 THEN
+      p2=yl1+1
+      d2=0
+    ENDIF
+  ENDIF
+  IF d2=2 THEN
+    p2=p2+step*ABS(STRIG(0)-1)
+    IF p2>yl2-bat+8 THEN
+      p2=yl2-bat+8
+      d2=0
+    ENDIF
+  ENDIF
+RETURN
+> PROCEDURE movecpu
+  d2=1
+  p2=yc-bat/2
+  IF p2<yl1+1 THEN
+    p2=yl1+1
+    d2=0
+  ENDIF
+  IF p2>yl2-bat+8 THEN
+    p2=yl2-bat+8
+    d2=0
+  ENDIF
+RETURN
+' *******************************************************************
+'                           INIT+VORSPANN+MENU
+' *******************************************************************
+> PROCEDURE startup
+  WHILE xs=0
+    xs=INT(RND*2)-1
+  WEND
+  WHILE ys=0
+    ys=INT(RND*2)-1
+  WEND
+  xl1=20
+  xl2=xmax-22
+  yl1=42
+  yl2=ymax-21
+  xc=xmax/2
+  yc=ymax/2
+  LOCATE 1,1
+  PRINT pu1
+  LOCATE 20,1
+  PRINT pu2
+  d1=1
+  setp1
+  d2=1
+  setp2
+  FOR a=1 TO 3
+    ballset
+    FOR t=20 TO 80 STEP 10
+      IF STRIG(1) OR STRIG(0) THEN
+        t=80
+        a=3
+      ENDIF
+      SOUND t*100,1
+    NEXT t
+    ballclr
+    FOR t=80 TO 20 STEP -10
+      IF STRIG(1) OR STRIG(0) THEN
+        t=20
+        a=3
+      ENDIF
+      SOUND t*100,1
+    NEXT t
+  NEXT a
+RETURN
+> PROCEDURE initcols
+  FOR x=4 TO 15
+    SETCOLOR x,x,x,x
+  NEXT x
+  SETCOLOR 0,0,0,0
+  SETCOLOR 1,15,15,15
+  SETCOLOR 2,15,0,0
+  SETCOLOR 3,0,15,0
+RETURN
+> PROCEDURE field
+  FOR x=3 TO 11
+    COLOR 10
+    BOX x,x+25,xmax-x,ymax-x
+  NEXT x
+RETURN
+> PROCEDURE title
+  COLOR 0
+  PBOX 25,40,300,240
+  PBOX 0,0,xmax,20
+  COLOR 15
+  PBOX 96,90,120,130
+  PBOX 128,98,152,130
+  PBOX 160,98,184,130
+  PBOX 192,98,216,146
+  COLOR 0
+  PBOX 104,98,112,106
+  PBOX 104,114,120,130
+  PBOX 136,106,144,122
+  PBOX 168,106,176,130
+  PBOX 200,106,208,122
+  PBOX 192,130,208,138
+  LOCATE 12,19
+  PRINT "©1977 by ATARI.inc"
+  LOCATE 12,20
+  PRINT " Recoded by L.S.D"
+  a$(0)="ONE  PLAYER"
+  a$(1)="BALLSPEED="+STR$(speed)
+  a$(2)="BAT SPEED="+STR$(step)
+  a$(3)="BATHEIGH="+STR$(bat)+" "
+  men=0
+  menu
+  pu1=0
+  pu2=0
+  p1=(ymax-bat)/2+15
+  p2=(ymax-bat)/2+15
+  SETCOLOR 15,15,15,15
+  PBOX 25,40,300,240
+RETURN
+> PROCEDURE gameover
+  COLOR 0
+  PBOX 25,40,300,240
+  COLOR 15
+  PBOX 96,70,216,158
+  COLOR 0
+  PBOX 96,110,216,118
+  PBOX 120,70,128,158
+  PBOX 152,70,160,158
+  PBOX 184,70,192,158
+  PBOX 104,78,112,102   !     G
+  PBOX 112,78,120,94
+  PBOX 136,78,144,94    !     A
+  PBOX 136,102,144,148
+  PBOX 168,70,176,78    !     M
+  PBOX 168,86,176,110
+  PBOX 200,78,216,102   !     E
+  PBOX 104,126,112,150  !     O
+  PBOX 128,150,135,158
+  PBOX 145,150,152,158  !     V
+  PBOX 168,126,184,150  !     E
+  PBOX 200,126,208,134
+  PBOX 200,150,208,158
+  PBOX 208,142,216,150  !     R
+  COLOR 15
+  PBOX 168,134,176,142
+  PBOX 200,86,208,94
+  freq=5000
+  WHILE STRIG(1)=0 AND STRIG(0)=0
+    IF freq>200 THEN
+      freq=freq-100
+      SOUND freq,1
+    ENDIF
+    SETCOLOR 15,INT(RND*15),INT(RND*15),INT(RND*15)
+  WEND
+  freq=0
+RETURN
+> PROCEDURE menu
+  WHILE STRIG(1)=0 AND STRIG(0)=0
+    FOR a=0 TO 3
+      PRINT AT(16,22+2*a);a$(a)
+    NEXT a
+    PRINT AT(13,22+2*men);"->"
+    PRINT AT(28,22+2*men);"<-"
+    IF STICK(1)=2 THEN
+      PRINT AT(13,22+2*men);"  "
+      PRINT AT(28,22+2*men);"  "
+      men=men+1
+      IF men=4 THEN
+        men=0
+      ENDIF
+    ENDIF
+    IF STICK(1)=1 THEN
+      PRINT AT(13,22+2*men);"  "
+      PRINT AT(28,22+2*men);"  "
+      men=men-1
+      IF men<0 THEN
+        men=3
+      ENDIF
+    ENDIF
+    IF STICK(1)=4 THEN
+      dereas
+    ENDIF
+    IF STICK(1)=8 THEN
+      inreas
+    ENDIF
+    SETCOLOR 15,INT(RND*15),INT(RND*15),INT(RND*15)
+  WEND
+RETURN
+> PROCEDURE dereas
+  ON men+1 GOSUB m0,m1,m2,m3
+RETURN
+> PROCEDURE m0
+  a$(0)="ONE  PLAYER"
+  playeranz=1
+RETURN
+> PROCEDURE m1
+  speed=speed-1
+  IF speed<1 THEN
+    speed=1
+  ENDIF
+  a$(1)="BALLSPEED="+STR$(speed)
+RETURN
+> PROCEDURE m2
+  step=step-1
+  IF step<1 THEN
+    step=1
+  ENDIF
+  a$(2)="BAT SPEED="+STR$(step)
+RETURN
+> PROCEDURE m3
+  bat=bat-1
+  IF bat<4 THEN
+    bat=4
+  ENDIF
+  a$(3)="BATHEIGH="+STR$(bat)+" "
+RETURN
+> PROCEDURE inreas
+  ON men+1 GOSUB mi0,mi1,mi2,mi3
+RETURN
+> PROCEDURE mi0
+  a$(0)="TWO PLAYERS"
+  playeranz=2
+RETURN
+> PROCEDURE mi1
+  speed=speed+1
+  IF speed>9 THEN
+    speed=9
+  ENDIF
+  a$(1)="BALLSPEED="+STR$(speed)
+RETURN
+> PROCEDURE mi2
+  step=step+1
+  IF step>9 THEN
+    step=9
+  ENDIF
+  a$(2)="BAT SPEED="+STR$(step)
+RETURN
+> PROCEDURE mi3
+  bat=bat+1
+  IF bat>99 THEN
+    bat=99
+  ENDIF
+  a$(3)="BATHEIGH="+STR$(bat)+" "
+RETURN

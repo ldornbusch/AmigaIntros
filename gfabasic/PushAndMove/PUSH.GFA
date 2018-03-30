@@ -1,0 +1,1032 @@
+REM        push and move
+REM      © by Lutz Dornbusch
+REM       on 11.2.89
+REM    converted from 19.5.95 - 23.5.95
+REM
+OPENS 1,0,0,320,266,5,0
+OPENW 2,0,0,320,266,0,2048+256+4096,1
+SETCOLOR 0,0,0,0
+SETCOLOR 1,0,0,0
+pset=&HC0
+preset=pset
+rgbf=15
+men=3
+DIM hi$(9)
+DIM points(9)
+DIM bewegung(120)
+GOSUB loadlsg
+col%=16
+hi$(0)="Perry Rhodan"
+points(0)=2000
+hi$(1)="Hannes"
+points(1)=1900
+hi$(2)="Spreadline"
+points(2)=1800
+hi$(3)="Magician"
+points(3)=1650
+hi$(4)="Infonaut "
+points(4)=1500
+hi$(5)="D.O.C."
+points(5)=1300
+hi$(6)="Luke S."
+points(6)=1200
+hi$(7)="Pandora"
+points(7)=1000
+hi$(8)="Butz"
+points(8)=760
+hi$(9)="Tiny"
+points(9)=500
+DIM typ(17,13),typ2(17,13),typ3(17,13)
+COLOR 2
+GOSUB farbe
+GOSUB gfxmade
+GOSUB title
+keyloop:
+REPEAT
+  GOSUB fade
+  a$=INKEY$
+UNTIL a$="1" OR a$="2" OR a$="3"
+IF a$="1" THEN
+  GOSUB leveled
+  title
+ENDIF
+IF a$="2" THEN
+  GOSUB hiscores
+  title
+ENDIF
+IF a$="3" THEN
+  GOSUB game
+  GOSUB gameover
+  title
+ENDIF
+GOTO keyloop
+' ************************Game*Game*Game*Game**************
+PROCEDURE game
+  pu=0
+  mov=0
+  lv=0
+  man=men
+  GOSUB feld
+  GRAPHMODE 1
+  WHILE man>0
+    WHILE a$<>"Q"
+      testflag=0
+      lv=lv+1
+      ARRAYFILL typ2(),0
+      GOSUB levelload
+      GOSUB buildlevel
+      GOSUB findraus
+      mov=0
+      GOSUB timestart
+      WHILE a$<>"Q" AND testflag=0
+        GOSUB joy
+        GOSUB status
+        a$=INKEY$
+      WEND
+      GOSUB timestop
+      IF testflag=1 THEN
+        pu=pu+INT((500-ti)^2/1000)
+        ' ...........Punkteberechnung......
+      ELSE
+        lv=lv-1
+      ENDIF
+    WEND
+    man=man-1
+    a$=""
+  WEND
+  ARRAYFILL typ(),0
+  ARRAYFILL typ2(),0
+RETURN
+> PROCEDURE timestart
+  time=3600*VAL(MID$(TIME$,1,2))+60*VAL(MID$(TIME$,4,2))+VAL(MID$(TIME$,7,2))
+RETURN
+> PROCEDURE timestop
+  ti=3600*VAL(MID$(TIME$,1,2))+60*VAL(MID$(TIME$,4,2))+VAL(MID$(TIME$,7,2))-time
+RETURN
+> PROCEDURE findraus
+  FOR y=1 TO 13
+    FOR x=1 TO 17
+      IF typ(x,y)=3 THEN
+        xr=x
+        yr=y
+        bg=3
+      ENDIF
+    NEXT x
+  NEXT y
+RETURN
+> PROCEDURE joy
+  di=STICK(1)
+  fire=STRIG(1)
+  IF di<>0 THEN
+    pox=xr
+    poy=yr
+    IF di=1 THEN
+      poy=yr-1
+      IF poy<1 THEN
+        poy=1
+      ENDIF
+    ENDIF
+    IF di=2 THEN
+      poy=yr+1
+      IF poy>13 THEN
+        poy=13
+      ENDIF
+    ENDIF
+    IF di=4 THEN
+      pox=xr-1
+      IF pox<1 THEN
+        pox=1
+      ENDIF
+    ENDIF
+    IF di=8 THEN
+      pox=xr+1
+      IF pox>17 THEN
+        pox=17
+      ENDIF
+    ENDIF
+    newt=typ(pox,poy)
+    IF newt=0 OR newt=1 OR newt=3 THEN
+      dx=pox-xr
+      dy=poy-yr
+      FOR a=1 TO 16
+        x=xr
+        y=yr
+        obj=bg+1
+        GOSUB setobj
+        x=16*(pox-dx)+a*dx
+        y=16*(poy-dy)+a*dy
+        PUT x,y,hero$,preset
+      NEXT a
+      xr=pox
+      yr=poy
+      bg=newt
+      bew=bew+1
+    ENDIF
+    IF newt=4 AND fire THEN
+      GOSUB stonemoving
+      bew=bew+1
+    ENDIF
+  ENDIF
+  IF fire AND bg=3 THEN
+    fire=0
+    GOSUB leveltest
+  ENDIF
+RETURN
+> PROCEDURE leveltest
+  testflag=1
+  FOR x=1 TO 17
+    FOR y=1 TO 13
+      IF typ(x,y)=1 THEN
+        testflag=0
+      ENDIF
+    NEXT y
+  NEXT x
+RETURN
+> PROCEDURE stonemoving
+  mox=2*pox-xr
+  moy=2*poy-yr
+  IF mox>0 AND mox<18 AND moy>0 AND moy<14 THEN
+    pushn=typ(mox,moy)
+    IF pushn=0 OR pushn=3 OR pushn=1 THEN
+      ' 1.  in typ2(mox/moy) <== typ(mox/moy) gespeichert (background)
+      ' 2.  in typ (pox,poy) wird Hero gesetzt bg=typ2(pox,poy)
+      ' 3.  typ(xr,yr) wird wieder auf bg gesetzt (loeschen von oldHero)
+      ' 4.  typ(mox,moy)=4 ==> Stone setzen
+      ' 5.  typ(pox,poy) <== typ2(pox,poy)       (Hintergrund vom Stone)
+      ' 6.  mov = mov + 1
+      typ2(mox,moy)=typ(mox,moy)
+      ' *****************************FIGURENSETZEN...********************
+      dx=pox-xr
+      dy=poy-yr
+      FOR a=1 TO 16
+        x=xr
+        y=yr
+        obj=bg+1
+        GOSUB setobj
+        x=16*(pox-dx)+dx*a
+        y=16*(poy-dy)+dy*a
+        PUT x,y,hero$,preset
+        x=16*(mox-dx)+dx*a
+        y=16*(moy-dy)+dy*a
+        PUT x,y,stone$,pset
+      NEXT a
+      xr=pox
+      yr=poy
+      bg=typ2(pox,poy)
+      typ(mox,moy)=4
+      typ(pox,poy)=typ2(pox,poy)
+      mov=mov+1
+    ENDIF
+  ENDIF
+RETURN
+> PROCEDURE status
+  GOSUB timestop
+  lv$=SPACE$(2-LEN(STR$(lv)))+STR$(lv)
+  us$=STR$(ti)
+  us=LEN(us$)
+  IF us>3 THEN
+    us$=MID$(us$,us-3,3)
+  ENDIF
+  ti$=SPACE$(3-LEN(us$))+us$
+  mo$=SPACE$(3-LEN(STR$(mov)))+STR$(mov)
+  pu$=SPACE$(5-LEN(STR$(pu)))+STR$(pu)
+  me$=SPACE$(2-LEN(STR$(man)))+STR$(man)
+  status$="Lv:"+lv$+" Ti:"+ti$+" Psh:"+mo$+" Pts:"+pu$+" Men:"+me$
+  LOCATE 1,30
+  PRINT status$
+RETURN
+> PROCEDURE gameover
+  SETCOLOR 31,15,15,15
+  lv=100
+  GOSUB levelload
+  GOSUB buildlevel
+  LOCATE 18,27
+  PRINT "FIRE!"
+  GOSUB wait
+  ARRAYFILL typ(),0
+  GOSUB feld
+  IF pu>points(9) THEN
+    FOR x=0 TO 9
+      IF pu>=points(x) THEN
+        rang=x
+        x=9
+      ENDIF
+    NEXT x
+    LOCATE 9,2
+    PRINT "Sie machten den ";STR$(rang+1);".Platz!"
+    index=0
+    IF rang<9 THEN
+      FOR x=8 DOWNTO rang
+        hi$(x+1)=hi$(x)
+        points(x+1)=points(x)
+      NEXT x
+    ENDIF
+    LOCATE 14,3
+    PRINT "THE HIGHSCORES"
+    FOR x=7 TO 25 STEP 2
+      IF index=rang THEN
+        LOCATE 1,29
+        INPUT "Ihr Name";hi$(rang)
+        IF LEN(hi$(rang))>14 THEN
+          hi$(rang)=MID$(hi$(rang),1,13)
+        ENDIF
+        points(rang)=pu
+      ENDIF
+      LOCATE 10,x
+      PRINT index+1;SPACE$(1-INT((index+1)/10));".";hi$(index);SPACE$(19-LEN(hi$(index))-LEN(STR$(points(index))));points(index)
+      index=index+1
+    NEXT x
+    GOSUB border
+    wait
+  ENDIF
+RETURN
+> PROCEDURE hiscores
+  index=0
+  GOSUB feld
+  COLOR 31
+  LOCATE 14,3
+  PRINT "THE HIGHSCORES"
+  FOR x=7 TO 25 STEP 2
+    LOCATE 10,x
+    PRINT index+1;SPACE$(1-INT((index+1)/10));".";hi$(index);SPACE$(19-LEN(hi$(index))-LEN(STR$(points(index))));points(index)
+    index=index+1
+  NEXT x
+  wait
+RETURN
+' **************************Level editor*******************
+> PROCEDURE leveled
+  GOSUB feld
+  GOSUB panel
+  x=2
+  y=2
+  COLOR 2
+  GRAPHMODE 2
+  PBOX x*16,y*16,x*16+15,y*16+15
+  GOSUB selectfliessen
+  edtaste:
+  WHILE a$<>"Q"
+    FOR abc=0 TO 1000
+    NEXT abc
+    a$=INKEY$
+    trigger!=STRIG(1)
+    jx=STICK(1)
+    IF jx=1 THEN
+      GOSUB edup
+    ENDIF
+    IF jx=2 THEN
+      GOSUB eddown
+    ENDIF
+    IF jx=4 THEN
+      GOSUB edleft
+    ENDIF
+    IF jx=8 THEN
+      GOSUB edright
+    ENDIF
+    IF trigger! THEN
+      GOSUB setobj
+      PBOX x*16,y*16,x*16+15,y*16+15
+    ENDIF
+    IF UPPER$(a$)="B" THEN
+      GOSUB selectblock
+    ENDIF
+    IF UPPER$(a$)="W" THEN
+      GOSUB selectwall
+    ENDIF
+    IF UPPER$(a$)="E" THEN
+      GOSUB selectexit
+    ENDIF
+    IF UPPER$(a$)="F" THEN
+      GOSUB selectfield
+    ENDIF
+    IF UPPER$(a$)="V" THEN
+      GOSUB selectfliessen
+    ENDIF
+    IF UPPER$(a$)="T" THEN
+      GOSUB testgame
+    ENDIF
+    IF a$="L" THEN
+      LOCATE 1,30
+      PRINT SPACE$(38)
+      LOCATE 1,30
+      PRINT "                       LEVELNO.:";
+      INPUT lv
+      GOSUB levelload
+      GOSUB buildlevel
+      GOSUB panel
+      x=2
+      y=2
+      COLOR 2
+      GRAPHMODE 2
+      PBOX x*16,y*16,x*16+15,y*16+15
+    ENDIF
+    IF a$=CHR$(27) THEN
+      GOSUB savepic
+    ENDIF
+  WEND
+  ARRAYFILL typ(),0
+  GRAPHMODE 1
+RETURN
+> PROCEDURE panel
+  LOCATE 1,31
+  PRINT "<W>all<F>ield<E>xit<B>lock<V>liessen"
+  LOCATE 1,30
+  PRINT "<L>oad<ESC>Save    <Q>uit <T>est"
+RETURN
+> PROCEDURE edright
+  COLOR 2
+  PBOX x*16,y*16,x*16+15,y*16+15
+  x=x+1
+  IF x>17 THEN
+    x=17
+  ENDIF
+  PBOX x*16,y*16,x*16+15,y*16+15
+RETURN
+> PROCEDURE edleft
+  COLOR 2
+  PBOX x*16,y*16,x*16+15,y*16+15
+  x=x-1
+  IF x=0 THEN
+    x=1
+  ENDIF
+  PBOX x*16,y*16,x*16+15,y*16+15
+RETURN
+> PROCEDURE edup
+  COLOR 2
+  PBOX x*16,y*16,x*16+15,y*16+15
+  y=y-1
+  IF y=0 THEN
+    y=1
+  ENDIF
+  PBOX x*16,y*16,x*16+15,y*16+15
+RETURN
+> PROCEDURE eddown
+  COLOR 2
+  PBOX x*16,y*16,x*16+15,y*16+15
+  y=y+1
+  IF y>13 THEN
+    y=13
+  ENDIF
+  COLOR 2
+  PBOX x*16,y*16,x*16+15,y*16+15
+RETURN
+> PROCEDURE convertfield
+  fehler=0
+  noraus=0
+  ziel=0
+  testflag=0
+  COLOR 2
+  PBOX x*16,y*16,x*16+15,y*16+15
+  FOR zay=1 TO 13
+    FOR zax=1 TO 17
+      ftyp=POINT(zax*16+8,zay*16+8)
+      IF ftyp=3 THEN
+        typ(zax,zay)=1
+        ziel=ziel+1
+        testflag=1
+      ENDIF
+      IF ftyp=5 THEN
+        typ(zax,zay)=2
+      ENDIF
+      IF ftyp=7 THEN
+        typ(zax,zay)=3
+        noraus=noraus+1
+      ENDIF
+      IF ftyp=10 THEN
+        typ(zax,zay)=0
+      ENDIF
+      IF ftyp=11 THEN
+        typ(zax,zay)=4
+        ziel=ziel-1
+      ENDIF
+    NEXT zax
+  NEXT zay
+  IF noraus<>1 THEN
+    LOCATE 4,5
+    PRINT "Bitte nur einen (1!) EXIT!!!!!!!"
+    fehler=fehler+1
+  ENDIF
+  IF ziel<>0 THEN
+    LOCATE 4,5
+    PRINT "Genauso viele Steine wie Felder!"
+    fehler=fehler+1
+  ENDIF
+  IF testflag=0 THEN
+    LOCATE 4,5
+    PRINT "WAS SOLL ICH DENN HIER MACHEN???"
+    fehler=fehler+1
+  ENDIF
+RETURN
+> PROCEDURE copyfield
+  FOR x1=1 TO 17
+    FOR y1=1 TO 13
+      typ3(x1,y1)=typ(x1,y1)
+    NEXT y1
+  NEXT x1
+RETURN
+> PROCEDURE freshfield
+  FOR x1=1 TO 17
+    FOR y1=1 TO 13
+      typ(x1,y1)=typ3(x1,y1)
+    NEXT y1
+  NEXT x1
+RETURN
+> PROCEDURE testgame
+  GOSUB convertfield
+  ARRAYFILL typ2(),0
+  GOSUB copyfield
+  IF fehler=0 THEN
+    testflag=0
+    GOSUB buildlevel
+    GOSUB findraus
+    WHILE a$<>"Q" AND testflag=0
+      GOSUB joy
+      '    GOSUB status
+      a$=INKEY$
+    WEND
+  ELSE
+    wait
+  ENDIF
+  GOSUB freshfield
+  GOSUB buildlevel
+  ARRAYFILL typ3(),0
+  x=2
+  y=2
+  PBOX x*16,y*16,x*16+15,y*16+15
+  GOSUB panel
+  a$=""
+RETURN
+' *************************D E M O*************************
+> PROCEDURE demo
+  GOSUB feld
+  lv=1
+  levelload
+  buildlevel
+  findraus
+  mov=0
+  pu=0
+  bew=0
+  a$=""
+  GOSUB timestart
+  WHILE a$="" AND MOUSEK=0 AND STRIG(2)=FALSE AND bewegung(bew)<>-1
+    FOR ze=1 TO 6
+      VSYNC
+    NEXT ze
+    bew=bew+1
+    GOSUB demojoy
+    GOSUB status
+    a$=INKEY$
+  WEND
+  ARRAYFILL typ(),0
+  GOSUB feld
+RETURN
+> PROCEDURE demojoy
+  di=bewegung(bew)
+  IF di=0 THEN
+    di=2
+  ENDIF
+  pox=xr
+  poy=yr
+  IF di=1 THEN
+    poy=yr-1
+    IF poy<1 THEN
+      poy=1
+    ENDIF
+  ENDIF
+  IF di=2 THEN
+    poy=yr+1
+    IF poy>13 THEN
+      poy=13
+    ENDIF
+  ENDIF
+  IF di=4 THEN
+    pox=xr-1
+    IF pox<1 THEN
+      pox=1
+    ENDIF
+  ENDIF
+  IF di=8 THEN
+    pox=xr+1
+    IF pox>17 THEN
+      pox=17
+    ENDIF
+  ENDIF
+  newt=typ(pox,poy)
+  IF newt=0 OR newt=1 OR newt=3 THEN
+    dx=pox-xr
+    dy=poy-yr
+    FOR a=1 TO 16
+      x=xr
+      y=yr
+      obj=bg+1
+      GOSUB setobj
+      x=16*(pox-dx)+a*dx
+      y=16*(poy-dy)+a*dy
+      PUT x,y,hero$,preset
+    NEXT a
+    xr=pox
+    yr=poy
+    bg=newt
+  ENDIF
+  IF newt=4 THEN
+    GOSUB stonemoving
+  ENDIF
+  IF bg=3 THEN
+    a$="Q"
+  ENDIF
+RETURN
+' **************************OBJECTS SETTING..**************
+> PROCEDURE setobj
+  ON obj GOSUB sfliessen,sfield,swall,sexit,sblock,shero
+RETURN
+> PROCEDURE setobj2
+  obj=typ(x,y)+1
+  ON obj GOSUB sfliessen,sfield,swall,sexit,sblock,shero
+RETURN
+> PROCEDURE sfliessen
+  PUT x*16,y*16,bottom$,preset
+RETURN
+> PROCEDURE sfield
+  PUT x*16,y*16,dest$,preset
+RETURN
+> PROCEDURE swall
+  PUT x*16,y*16,block$,preset
+RETURN
+> PROCEDURE sexit
+  PUT x*16,y*16,raus$,preset
+RETURN
+> PROCEDURE sblock
+  PUT x*16,y*16,stone$,preset
+RETURN
+> PROCEDURE shero
+  PUT x*16,y*16,hero$,preset
+RETURN
+> PROCEDURE selectfliessen
+  obj=1
+  ' bottom
+RETURN
+> PROCEDURE selectfield
+  obj=2
+RETURN
+> PROCEDURE selectwall
+  obj=3
+  ' wall
+RETURN
+> PROCEDURE selectexit
+  obj=4
+  ' exit
+RETURN
+> PROCEDURE selectblock
+  obj=5
+RETURN
+> PROCEDURE buildlevel
+  GOSUB feld
+RETURN
+' ***********************DISKS...*******************
+> PROCEDURE levelload
+  dat$="df0:gfa-programs/p.a.m/levels/l"+STR$(lv)
+  OPEN "I",#1,dat$
+  FOR y=1 TO 13
+    FOR x=1 TO 17
+      INPUT #1,typ(x,y)
+    NEXT x
+  NEXT y
+  CLOSE #1
+RETURN
+> PROCEDURE loadlsg
+  dat$="df0:gfa-programs/p.a.m/levels/l1.lsg"
+  OPEN "I",#1,dat$
+  REPEAT
+    INPUT #1,bewegung(bew)
+    bew=bew+1
+  UNTIL bewegung(bew-1)=-1
+  bewegung(bew)=-1
+  CLOSE #1
+RETURN
+> PROCEDURE savepic
+  GOSUB convertfield
+  ' ***************************** Saveroutine
+  IF noraus=1 AND ziel=0 AND testflag<>0 THEN
+    LOCATE 1,31
+    PRINT SPACE$(39)
+    LOCATE 1,30
+    PRINT SPACE$(39)
+    LOCATE 10,5
+    GRAPHMODE 1
+    COLOR 0
+    PBOX 64,33,168,55
+    COLOR 2,2
+    BOX 64,33,168,55
+    INPUT "Level No.:",dat
+    GRAPHMODE 2
+    dat$="df0:gfa-programs/p.a.m/levels/L"+STR$(dat)
+    OPEN "O",#1,dat$
+    FOR day=1 TO 13
+      FOR dax=1 TO 17
+        PRINT #1,typ(dax,day)
+      NEXT dax
+    NEXT day
+    CLOSE #1
+    a$="Q"
+  ENDIF
+  ' **********************************Saven fertig...
+  LOCATE 17,26
+  PRINT "FIRE!!!"
+  wait
+  GOSUB buildlevel
+  x=2
+  y=2
+  noraus=0
+  testflag=0
+  ziel=0
+  COLOR 2
+  PBOX x*16,y*16,x*16+15,y*16+15
+RETURN
+' *********************ENVIROMENTS..*******************
+> PROCEDURE title
+  LOCATE 31,1
+  PRINT SPACE$(38)
+  GOSUB feld
+  LOCATE 15,10
+  PRINT "Welcome to"
+  LOCATE 10,13
+  PRINT " P U S H  &  M O V E "
+  GRAPHMODE 1
+  wait
+  GOSUB feld
+  LOCATE 5,7
+  PRINT "< 1 > ............Level-Editor"
+  LOCATE 5,9
+  PRINT "< 2 > ............High Scores"
+  LOCATE 5,11
+  PRINT "< 3 > ............Begin Game"
+RETURN
+> PROCEDURE wait
+  REPEAT
+    va!=STRIG(1)
+    GOSUB fade
+    ze=ze+1
+    IF ze>10000 THEN
+      ze=0
+      GOSUB demo
+      va!=TRUE
+    ENDIF
+  UNTIL va!
+  ze=0
+RETURN
+> PROCEDURE feld
+  LOCATE 1,30
+  PRINT SPACE$(38)
+  LOCATE 1,31
+  PRINT SPACE$(38)
+  FOR x=1 TO 15
+    '    SETCOLOR x,0,0,0
+  NEXT x
+  GOSUB border
+  obj=1
+  titte=INT(RND*5)+1
+  ON titte GOSUB fe_vcurt,fe_hcurt,fe_snake,fe_rahm,fe_chess
+  GOSUB farbe
+RETURN
+> PROCEDURE border
+  FOR x=0 TO 288 STEP 16
+    PUT x,0,block$,pset
+    PUT x,224,block$,pset
+  NEXT x
+  FOR y=0 TO 223 STEP 16
+    PUT 0,y,block$,pset
+    PUT 288,y,block$,pset
+  NEXT y
+RETURN
+> PROCEDURE farbe
+  RESTORE farbzahl
+  FOR x=1 TO 15
+    READ r,g,b
+    SETCOLOR x,15*r,15*g,15*b
+  NEXT x
+  farbzahl:
+  DATA 0,1,0,1,1,1
+  DATA 0,1,.4,0,.9,.5
+  DATA 1,1,0,1,.7,0
+  DATA 1,1,1,.3,.3,.3
+  DATA 1,.5,1,.6,0,0
+  DATA 0,.6,.6,0,1,1
+  DATA .3,.0,.0,.6,0,0
+  DATA 1,0,0
+RETURN
+> PROCEDURE fade
+  xf=10*(SINQ(xw))^2+5
+  SETCOLOR 1,rf*xf,gf*xf,bf*xf
+  xw=xw+0.25
+  IF xw>180 THEN
+    xw=xw-180
+    rgbf=rgbf+1
+    IF rgbf>15 THEN
+      rgbf=9
+    ENDIF
+    rf=VAL(MID$(BIN$(rgbf),2,1))
+    gf=VAL(MID$(BIN$(rgbf),3,1))
+    bf=VAL(MID$(BIN$(rgbf),4,1))
+  ENDIF
+RETURN
+> PROCEDURE gfxmade
+  ' hero                 colour 10,13......
+  COLOR 10
+  PBOX 20,20,35,35
+  COLOR 7
+  LINE 26,20,29,20
+  LINE 24,23,24,22
+  LINE 31,23,31,22
+  PLOT 25,21
+  PLOT 30,21
+  COLOR 6
+  LINE 26,21,29,21
+  PBOX 25,22,30,25
+  LINE 21,31,22,31
+  PLOT 21,32
+  LINE 33,31,34,31
+  PLOT 34,32
+  LINE 26,30,29,30
+  COLOR 0
+  PLOT 25,25
+  PLOT 30,25
+  COLOR 8
+  PLOT 26,22
+  PLOT 29,22
+  COLOR 15
+  LINE 26,24,27,25
+  LINE 29,24,28,25
+  LINE 27,30,28,30
+  LINE 25,31,24,32
+  PLOT 24,33
+  PLOT 29,33
+  COLOR 5
+  PLOT 25,30
+  PLOT 30,30
+  COLOR 3
+  PBOX 25,26,28,29
+  COLOR 4
+  PBOX 30,26,29,29
+  PLOT 28,26
+  PLOT 27,27
+  PLOT 28,28
+  PLOT 27,29
+  COLOR 12
+  LINE 23,35,24,35
+  LINE 30,35,31,35
+  COLOR 11
+  PBOX 23,26,24,27
+  PBOX 31,26,32,27
+  PBOX 22,28,23,29
+  PBOX 32,28,33,29
+  LINE 21,30,22,30
+  LINE 33,30,34,30
+  PLOT 25,35
+  PLOT 32,35
+  COLOR 14
+  PLOT 26,31
+  PLOT 24,34
+  LINE 25,32,25,33
+  LINE 29,31,29,32
+  LINE 30,32,30,34
+  COLOR 13
+  LINE 27,31,28,31
+  PLOT 30,31
+  PLOT 26,32
+  PLOT 25,34
+  LINE 31,32,31,34
+  GET 20,20,35,35,hero$
+  '    dest
+  '                      colour 3,4
+  COLOR 4
+  PBOX 10,11,25,26
+  COLOR 3
+  BOX 10,11,25,26
+  LINE 10,19,25,19
+  LINE 10,18,25,18
+  LINE 18,11,18,26
+  LINE 17,11,17,26
+  LINE 10,11,25,26
+  LINE 10,26,25,11
+  BOX 13,14,22,23
+  GET 10,11,25,26,dest$
+  '  block              colour 5,6
+  COLOR 6
+  PBOX 10,11,25,26
+  COLOR 5
+  BOX 13,14,22,23
+  LINE 10,11,25,11
+  LINE 10,11,10,26
+  LINE 25,11,10,26
+  FILL 11,12
+  FILL 21,22
+  LINE 25,26,10,11
+  GET 10,11,25,26,block$
+  '   raus   *******   colour 7,8
+  COLOR 8
+  PBOX 10,11,25,26
+  COLOR 7
+  PBOX 10,11,25,18
+  COLOR 8
+  LINE 17,18,18,18
+  COLOR 7
+  LINE 17,19,18,19
+  COLOR 8
+  LINE 11,12,15,12
+  LINE 11,12,11,17
+  LINE 11,17,15,17
+  LINE 11,14,13,14
+  '  x
+  LINE 20,12,25,17
+  LINE 20,17,25,12
+  ' i
+  COLOR 7
+  PLOT 13,20
+  LINE 13,22,13,25
+  ' t
+  LINE 20,20,24,20
+  LINE 22,20,22,25
+  GET 10,11,25,26,raus$
+  '   bottom           colour 9,10
+  COLOR 10
+  PBOX 10,11,25,26
+  COLOR 9
+  PLOT 19,25
+  LINE 10,11,16,17
+  LINE 12,11,16,15
+  LINE 14,11,16,13
+  LINE 10,13,15,18
+  LINE 10,15,13,18
+  LINE 10,17,11,18
+  PLOT 10,17
+  LINE 19,20,25,26
+  LINE 21,20,25,24
+  LINE 23,20,25,22
+  LINE 19,22,23,26
+  LINE 19,24,21,26
+  LINE 19,26,19,26
+  LINE 10,20,16,26
+  LINE 10,23,16,23
+  LINE 10,26,16,20
+  LINE 13,20,13,26
+  LINE 19,11,25,17
+  LINE 19,14,25,14
+  LINE 19,17,25,11
+  LINE 22,11,22,17
+  GET 10,11,25,26,bottom$
+  ' stone              colour 11,12
+  COLOR 12
+  PBOX 10,11,25,26
+  COLOR 11
+  LINE 10,11,25,26
+  LINE 10,26,25,11
+  BOX 11,12,24,25
+  BOX 14,15,21,22
+  GET 10,11,25,26,stone$
+RETURN
+' ********************screen effects.......************
+> PROCEDURE fe_chess
+  offy1=2
+  x1=1
+  y1=-1
+  FOR z=1 TO 111
+    y1=y1+offy1
+    IF y1>13 OR y1<1 THEN
+      x1=x1+1
+      offy1=-offy1
+      IF (x1 MOD 2)=0 THEN
+        y1=12
+      ELSE
+        y1=1
+      ENDIF
+    ENDIF
+    x=x1
+    y=y1
+    GOSUB setobj2
+  NEXT z
+  '         ****************..UND WIEDER ZURUECK...************
+  y1=y1+1
+  offy1=-2
+  FOR z=1 TO 110
+    y1=y1+offy1
+    IF y1>13 OR y1<1 THEN
+      x1=x1-1
+      offy1=-offy1
+      IF (x1 MOD 2)=1 THEN
+        y1=12
+      ELSE
+        y1=1
+      ENDIF
+    ENDIF
+    x=x1
+    y=y1
+    GOSUB setobj2
+  NEXT z
+RETURN
+> PROCEDURE fe_rahm
+  FOR x1=1 TO 7
+    y1=x1
+    x2=18-x1
+    y2=14-x1
+    FOR a=x1 TO x2
+      x=a
+      y=y1
+      GOSUB setobj2
+    NEXT a
+    FOR a=y1 TO y2
+      x=x2
+      y=a
+      GOSUB setobj2
+    NEXT a
+    FOR a=x2 TO x1 STEP -1
+      x=a
+      y=y2
+      GOSUB setobj2
+    NEXT a
+    FOR a=y2 TO y1 STEP -1
+      x=x1
+      y=a
+      GOSUB setobj2
+    NEXT a
+  NEXT x1
+RETURN
+> PROCEDURE fe_snake
+  offy1=1
+  x1=1
+  y1=0
+  FOR z=1 TO 221
+    y1=y1+offy1
+    IF y1=14 THEN
+      x1=x1+1
+      y1=13
+      offy1=-offy1
+    ENDIF
+    IF y1=0 THEN
+      x1=x1+1
+      y1=1
+      offy1=-offy1
+    ENDIF
+    x=x1
+    y=y1
+    GOSUB setobj2
+  NEXT z
+RETURN
+> PROCEDURE fe_hcurt
+  FOR x1=1 TO 9
+    FOR y=1 TO 13
+      x=x1
+      GOSUB setobj2
+      x=18-x1
+      GOSUB setobj2
+    NEXT y
+  NEXT x1
+RETURN
+> PROCEDURE fe_vcurt
+  FOR y1=1 TO 7
+    FOR x=1 TO 17
+      y=y1
+      GOSUB setobj2
+      y=14-y1
+      GOSUB setobj2
+    NEXT x
+  NEXT y1
+RETURN
